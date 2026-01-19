@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>欲望管理局 · The Bureau of Desire</title>
+    <style>
+        :root {
+            --primary: #ff8fa3;
+            --primary-dark: #ff6b81;
+            --secondary: #ffeaa7;
+            --accent: #fdcb6e;
+            --text: #5e4b52;
+            --bg: #fff0f5;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --shadow: 0 10px 20px rgba(255, 143, 163, 0.2);
+        }
+
+        * { box-sizing: border-box; transition: all 0.3s ease; }
+        
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #fad0c4 0%, #ffd1ff 100%);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            margin: 20px;
+            border: 2px solid #fff;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+
+        h1, h2, h3 { color: var(--primary-dark); text-align: center; margin-bottom: 1rem; }
+        h1 { font-size: 2.5rem; text-shadow: 2px 2px 0px var(--secondary); }
+
+        /* Buttons */
+        .btn {
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 107, 129, 0.4);
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255, 107, 129, 0.6); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .btn-small { width: auto; display: inline-block; margin: 5px; font-size: 0.9rem; padding: 8px 15px; }
+
+        /* Inputs */
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid var(--secondary);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--text);
+            font-size: 1rem;
+        }
+        input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+
+        /* Screens */
+        .screen { display: none; animation: fadeIn 0.5s; }
+        .active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Game UI */
+        #story-text {
+            line-height: 1.8;
+            font-size: 1.05rem;
+            margin-bottom: 2rem;
+            white-space: pre-wrap;
+            text-align: justify;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-right: 10px;
+            border-bottom: 2px dashed var(--secondary);
+            padding-bottom: 20px;
+        }
+
+        .highlight { color: var(--primary-dark); font-weight: bold; }
+        .sexy-tag { background: var(--secondary); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; color: var(--primary-dark); }
+
+        /* API Status */
+        .status-dot { height: 10px; width: 10px; background-color: #ccc; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-ok { background-color: #4cd137; }
+        .status-err { background-color: #e84118; }
+
+        /* Loading */
+        .loader { text-align: center; color: var(--primary); font-style: italic; display: none; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #fff; }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <!-- 1. HOME SCREEN -->
+    <section id="screen-home" class="screen active">
+        <h1>💗 欲望管理局 💗</h1>
+        <h3 style="font-weight: normal;">The Bureau of Desire</h3>
+        <p style="text-align: center; color: #888;">在这个世界，性不是选择，而是法律。</p>
+        <hr style="border: 0; border-top: 1px solid var(--secondary); margin: 2rem 0;">
+        
+        <button class="btn" onclick="navTo('screen-api')">⚙️ API 配置 / System Config</button>
+        <button class="btn" onclick="loadGameCheck()">📂 读取存档 / Load Game</button>
+        <button class="btn" onclick="navTo('screen-create')">💋 新建角色 / New Game</button>
+        <p style="text-align: center; font-size: 0.8rem; margin-top: 2rem; color: #aaa;">Powered by Puppy God Protocol</p>
+    </section>
+
+    <!-- 2. API CONFIG SCREEN -->
+    <section id="screen-api" class="screen">
+        <h2>🔧 API 设置</h2>
+        <p style="font-size: 0.9rem;">请配置您的 LLM API 以启动世界模拟。</p>
+        
+        <label>API Endpoint (完整地址):</label>
+        <input type="text" id="api-url" placeholder="https://api.openai.com/v1/chat/completions" value="https://api.openai.com/v1/chat/completions">
+        
+        <label>API Key:</label>
+        <input type="password" id="api-key" placeholder="sk-...">
+        
+        <label>Model Name (自动获取或手动输入):</label>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="api-model" placeholder="gpt-4o / claude-3-opus" value="gpt-4o">
+            <button class="btn btn-small" onclick="fetchModels()" style="width: 100px;">获取列表</button>
+        </div>
+
+        <div id="connection-status" style="margin: 10px 0; font-size: 0.9rem; color: #666;">
+            <span class="status-dot"></span> 等待连接...
+        </div>
+
+        <button class="btn" onclick="testConnection()">🧪 测试连接 / Test Ping</button>
+        <button class="btn" onclick="saveApiConfig()">💾 保存配置并返回</button>
+        <button class="btn" style="background: #ccc;" onclick="navTo('screen-home')">返回主页</button>
+    </section>
+
+    <!-- 3. CHARACTER CREATION -->
+    <section id="screen-create" class="screen">
+        <h2>📝 身份登记表</h2>
+        <p>管理局需要您的详细信息以匹配合适的“治疗”方案。</p>
+        
+        <label>姓名 Name:</label>
+        <input type="text" id="char-name" value="未知居民">
+        
+        <label>性别 Gender:</label>
+        <select id="char-gender">
+            <option value="女性">女性</option>
+            <option value="男性">男性</option>
+            <option value="双性">双性</option>
+        </select>
+
+        <label>年龄 Age:</label>
+        <input type="text" id="char-age" value="21">
+
+        <label>外貌 Appearance:</label>
+        <textarea id="char-appearance" rows="2" placeholder="如：粉色长发，胸部丰满，皮肤敏感..."></textarea>
+
+        <label>性欲等级 Libido (决定频率):</label>
+        <select id="char-libido">
+            <option value="普通 (两周一次)">普通 (两周一次)</option>
+            <option value="较高 (一周一次)">较高 (一周一次)</option>
+            <option value="极高 (三天一次)">极高 (三天一次 - 重点监控)</option>
+            <option value="成瘾 (每日强制)">成瘾 (每日强制 - 危险人物)</option>
+        </select>
+
+        <label>违法记录 Record:</label>
+        <textarea id="char-record" rows="2" placeholder="无，或：17岁时因私下自慰被鞭刑一次..."></textarea>
+
+        <button class="btn" onclick="startGame()">🚀 提交档案并进入世界</button>
+        <button class="btn" style="background: #ccc;" onclick="navTo('screen-home')">返回</button>
+    </section>
+
+    <!-- 4. GAMEPLAY SCREEN -->
+    <section id="screen-game" class="screen">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <span class="sexy-tag">📡 芯片监控中</span>
+            <div>
+                <button class="btn-small" onclick="saveGame()">💾 存档</button>
+                <button class="btn-small" onclick="navTo('screen-home')">🏠</button>
+            </div>
+        </div>
+
+        <div id="story-container">
+            <div id="story-text">正在初始化管理局数据库...</div>
+        </div>
+
+        <div class="loader" id="loader">💕 正在为您匹配对象与生成剧情...</div>
+
+        <div id="options-container">
+            <!-- Dynamic Buttons -->
+        </div>
+    </section>
+
+</div>
+
+<script>
+    // --- Configuration ---
+    let config = {
+        url: localStorage.getItem('bg_url') || 'https://api.openai.com/v1/chat/completions',
+        key: localStorage.getItem('bg_key') || '',
+        model: localStorage.getItem('bg_model') || 'gpt-4o'
+    };
+    
+    // --- Game State ---
+    let gameState = {
+        history: [], // Stores conversation context
+        character: {},
+        turn: 0
+    };
+
+    // --- System Prompt (The World Rules) ---
+    const SYSTEM_PROMPT = `
+你现在是一个高自由度的R18交互式文字游戏AI。你需要根据用户的角色设定和世界观进行角色扮演。
+世界观：
+1. 【管理局】：这是一个反乌托邦世界，私下做爱是重罪。所有性行为必须在管理局的监控下，在指定房间内完成。
+2. 【芯片监控】：所有人被植入芯片，检测身体各项数值（特别是高潮和性唤起）。在指定时间外的高潮是违法的。
+3. 【法律与惩罚】：
+   - 未成年禁止性行为，佩戴贞操锁。
+   - 不在指定时间自我疏解到高潮：公开鞭刑、强制佩戴贞操锁（每天仅开启10分钟）、严重者入狱。
+   - 私下做爱：终身监禁，作为实验体（超负荷高潮实验）。
+   - 执法人员：佩戴贞操锁，无私情，冷酷执行。
+4. 【匹配制度】：管理局根据体质定频率。性欲高的频率更高。房间有不同主题（触手、镜面、医疗、多人等）。
+5. 【风格要求】：
+   - 描写风格：R18小说风格，直白、详细、色情。大量使用具体的性器官名词（肉棒、阴户、子宫、精液等），重点描写感官体验、羞耻感、快感和身体反应。
+   - 必须结合上下文，剧情合理。禁止机械降神，禁止ooc。
+   - 允许强制、诱哄、羞辱、控制等情节。
+   - 每次输出剧情后，提供3-4个选项供玩家选择（包括顺从、反抗、尝试偷情、忍耐等）。
+
+请直接以第二人称“你”来描述玩家的经历。
+每次回复格式如下：
+[剧情描述段落]
+...
+1. [选项一]
+2. [选项二]
+3. [选项三]
+    `;
+
+    // --- UI Navigation ---
+    function navTo(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        
+        // Load config to inputs if entering API screen
+        if(id === 'screen-api') {
+            document.getElementById('api-url').value = config.url;
+            document.getElementById('api-key').value = config.key;
+            document.getElementById('api-model').value = config.model;
+        }
+    }
+
+    // --- API Functions ---
+    async function testConnection() {
+        const btn = document.querySelector('#screen-api button:nth-of-type(2)'); // Test button
+        const statusDiv = document.getElementById('connection-status');
+        
+        // Temp update config from inputs
+        config.url = document.getElementById('api-url').value;
+        config.key = document.getElementById('api-key').value;
+        config.model = document.getElementById('api-model').value;
+
+        btn.disabled = true;
+        btn.innerText = "⏳ 连接中...";
+
+        try {
+            const res = await fetch(config.url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${config.key}`
+                },
+                body: JSON.stringify({
+                    model: config.model,
+                    messages: [{role: "user", content: "Ping"}],
+                    max_tokens: 5
+                })
+            });
+
+            if(res.ok) {
+                statusDiv.innerHTML = '<span class="status-dot status-ok"></span> 连接成功！Puppy God 链路正常。';
+            } else {
+                throw new Error(res.statusText);
+            }
+        } catch (e) {
+            statusDiv.innerHTML = `<span class="status-dot status-err"></span> 连接失败: ${e.message}`;
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "🧪 测试连接 / Test Ping";
+        }
+    }
+
+    function saveApiConfig() {
+        config.url = document.getElementById('api-url').value;
+        config.key = document.getElementById('api-key').value;
+        config.model = document.getElementById('api-model').value;
+        
+        localStorage.setItem('bg_url', config.url);
+        localStorage.setItem('bg_key', config.key);
+        localStorage.setItem('bg_model', config.model);
+        
+        navTo('screen-home');
+    }
+
+    async function fetchModels() {
+        const url = document.getElementById('api-url').value.replace('/chat/completions', '/models');
+        const key = document.getElementById('api-key').value;
+        
+        if(!key) return alert("请先输入 API Key");
+
+        try {
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${key}` }
+            });
+            const data = await res.json();
+            if(data.data) {
+                let modelList = data.data.map(m => m.id).join('\n');
+                alert("可用模型:\n" + modelList);
+            } else {
+                alert("无法获取模型列表，请手动输入。");
+            }
+        } catch(e) {
+            alert("获取失败: " + e.message);
+        }
+    }
+
+    // --- Game Logic ---
+    function startGame() {
+        // Collect Character Data
+        gameState.character = {
+            name: document.getElementById('char-name').value,
+            gender: document.getElementById('char-gender').value,
+            age: document.getElementById('char-age').value,
+            appearance: document.getElementById('char-appearance').value,
+            libido: document.getElementById('char-libido').value,
+            record: document.getElementById('char-record').value
+        };
+
+        // Initialize History
+        gameState.history = [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: `
+                【新用户接入】
+                姓名：${gameState.character.name}
+                性别：${gameState.character.gender}
+                年龄：${gameState.character.age}
+                外貌：${gameState.character.appearance}
+                性欲等级：${gameState.character.libido}
+                违法记录：${gameState.character.record}
+                
+                请开始游戏，描述我目前的处境（可能是在家中突然感受到情欲，或者收到了管理局的传唤通知，或者正在街上接受巡逻队检查）。
+                请用极具沉浸感、R18风格的文字描述。
+            `}
+        ];
+
+        navTo('screen-game');
+        runTurn();
+    }
+
+    async function runTurn() {
+        const textDiv = document.getElementById('story-text');
+        const optionsDiv = document.getElementById('options-container');
+        const loader = document.getElementById('loader');
+
+        // Show loading
+        loader.style.display = 'block';
+        optionsDiv.innerHTML = ''; // Clear options
+
+        try {
+            const res = await fetch(config.url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${config.key}`
+                },
+                body: JSON.stringify({
+                    model: config.model,
+                    messages: gameState.history,
+                    temperature: 0.8, // Slightly creative for erotic descriptions
+                    max_tokens: 1000
+                })
+            });
+
+            const data = await res.json();
+            if(!data.choices) throw new Error("API返回格式错误");
+            
+            const aiContent = data.choices[0].message.content;
+            
+            // Update History
+            gameState.history.push({ role: "assistant", content: aiContent });
+
+            // Render Text
+            renderStory(aiContent);
+
+        } catch (e) {
+            textDiv.innerText += `\n\n[系统错误]: ${e.message}`;
+        } finally {
+            loader.style.display = 'none';
+        }
+    }
+
+    function renderStory(text) {
+        const textDiv = document.getElementById('story-text');
+        const optionsDiv = document.getElementById('options-container');
+
+        // Simple parsing to separate options from text if formatted clearly
+        // We will display the full text, then try to extract options buttons manually
+        // Or just let the user type custom actions? 
+        // For this game, we extract lines starting with 1. 2. 3.
+        
+        let displayHtml = text.replace(/\n/g, '<br>');
+        textDiv.innerHTML = displayHtml;
+        textDiv.scrollTop = textDiv.scrollHeight; // Auto scroll to bottom
+
+        // Parse options regex
+        const optionRegex = /(\d\.|>|-)\s*(.*)/g;
+        let match;
+        let optionsFound = false;
+
+        // Create a custom input first
+        const customInputDiv = document.createElement('div');
+        customInputDiv.innerHTML = `
+            <input type="text" id="custom-action" placeholder="...或者输入你想做的事" style="margin-bottom:5px;">
+            <button class="btn" onclick="handleChoice(document.getElementById('custom-action').value)">执行自定义行动</button>
+            <hr style="margin:10px 0; border:0; border-top:1px dashed #ccc;">
+        `;
+        optionsDiv.appendChild(customInputDiv);
+
+        // Try to find numbered lists at the end of the text
+        const lines = text.split('\n');
+        lines.forEach(line => {
+            if (line.trim().match(/^\d+\./)) {
+                const btn = document.createElement('button');
+                btn.className = 'btn';
+                btn.innerText = line.trim();
+                btn.onclick = () => handleChoice(line.trim());
+                optionsDiv.appendChild(btn);
+            }
+        });
+    }
+
+    function handleChoice(choiceText) {
+        if(!choiceText) return;
+        
+        // Add user choice to history
+        gameState.history.push({ role: "user", content: `我选择了：${choiceText}。请继续剧情，描写我的行动后果以及身体反应。记得要色情、详细。` });
+        
+        runTurn();
+    }
+
+    // --- Save/Load System ---
+    function saveGame() {
+        localStorage.setItem('bg_save', JSON.stringify(gameState));
+        alert("✅ 进度已保存至芯片（本地存储）");
+    }
+
+    function loadGameCheck() {
+        const saved = localStorage.getItem('bg_save');
+        if(!saved) {
+            alert("❌ 未检测到存档记录");
+            return;
+        }
+        if(confirm("检测到旧的记录，是否读取？")) {
+            gameState = JSON.parse(saved);
+            navTo('screen-game');
+            // Re-render the last message
+            const lastMsg = gameState.history[gameState.history.length - 1];
+            if(lastMsg.role === 'assistant') {
+                renderStory(lastMsg.content);
+            } else {
+                runTurn(); // If last was user, trigger AI response
+            }
+        }
+    }
+
+</script>
+</body>
+</html>
