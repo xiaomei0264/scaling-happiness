@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML收藏器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* 屏幕容器 */
+        .screen {
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .screen.active {
+            opacity: 1;
+            visibility: visible;
+            z-index: 1;
+        }
+
+        /* 头部样式 */
+        .header {
+            position: relative;
+            z-index: 15;
+            flex-shrink: 0;
+            padding: 15px 20px;
+            padding-top: 45px;
+            background-color: rgba(247, 247, 247, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header .back-btn, .header .action-btn {
+            font-size: 24px;
+            cursor: pointer;
+            width: 50px;
+            text-align: center;
+            color: #007AFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header .action-btn {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* 内容容器 */
+        .list-container, .form-container {
+            padding: 24px;
+            overflow-y: auto;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #666;
+            font-size: 15px;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #007AFF;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        /* 保存按钮 */
+        .save-btn {
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .save-btn:hover {
+            background: #0056CC;
+        }
+
+        /* HTML收藏相册样式 */
+        .html-card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            padding: 8px 4px;
+        }
+
+        .html-card {
+            position: relative;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+            cursor: pointer;
+        }
+
+        .html-card-cover {
+            width: 100%;
+            aspect-ratio: 1/1;
+            background: #f6f6f6;
+            overflow: hidden;
+        }
+
+        .html-card-cover iframe {
+            width: 200%;
+            height: 200%;
+            border: 0;
+            transform: scale(0.5);
+            transform-origin: top left;
+        }
+
+        .html-card-title {
+            padding: 10px 12px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .html-card-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: none;
+            gap: 6px;
+            z-index: 3;
+        }
+
+        .html-card-actions button {
+            background: rgba(0,0,0,0.55);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .modal.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-footer button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .modal-footer button:not(.btn-danger) {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .modal-footer button:not(.btn-danger):hover {
+            background: #e0e0e0;
+        }
+
+        .modal-footer .btn-danger {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .modal-footer .btn-danger:hover {
+            background: #d70015;
+        }
+
+        /* 全屏预览样式 */
+        .fullscreen-iframe {
+            width: 100%;
+            height: calc(100vh - 90px);
+            border: 0;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 480px) {
+            .html-card-grid {
+                grid-template-columns: repeat(2, 1fr); /* 保持一排两个 */
+                gap: 12px;
+            }
+            
+            .header {
+                padding: 15px;
+                padding-top: 45px;
+            }
+            
+            .list-container, .form-container {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- HTML收藏相册主界面 -->
+    <div id="html-gallery-screen" class="screen active">
+        <div class="header">
+            <span class="back-btn" onclick="showHome()">‹</span>
+            <span>HTML 收藏</span>
+            <div class="header-actions">
+                <span class="action-btn" id="add-html-card-btn" title="新增HTML">＋</span>
+            </div>
+        </div>
+        <div class="list-container">
+            <div id="html-card-grid" class="html-card-grid"></div>
+        </div>
+    </div>
+
+    <!-- HTML编辑器界面 -->
+    <div id="html-editor-screen" class="screen">
+        <div class="header">
+            <span class="back-btn" id="html-editor-back-btn">‹</span>
+            <span id="html-editor-title">编辑 HTML</span>
+            <div class="header-actions">
+                <span class="save-btn" id="save-html-card-btn">保存</span>
+            </div>
+        </div>
+        <div class="form-container">
+            <div class="form-group">
+                <label for="html-card-title-input">标题</label>
+                <input type="text" id="html-card-title-input" placeholder="例如：我的日记模板">
+            </div>
+            <div class="form-group">
+                <label for="html-card-content-input">HTML 内容</label>
+                <textarea id="html-card-content-input" rows="14" style="font-family: monospace;"></textarea>
+                <div class="help-text">可直接粘贴HTML文本；保存后将出现在相册网格中。</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HTML全屏预览界面 -->
+    <div id="html-fullscreen-screen" class="screen">
+        <div class="header">
+            <span class="back-btn" id="html-fullscreen-back-btn">‹</span>
+            <span id="html-fullscreen-title">预览</span>
+            <span style="width: 30px;"></span>
+        </div>
+        <div class="list-container" style="padding:0;">
+            <iframe id="html-fullscreen-iframe" class="fullscreen-iframe"></iframe>
+        </div>
+    </div>
+
+    <!-- HTML卡片操作模态框 -->
+    <div id="html-card-actions-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-footer">
+                <button id="html-action-edit-btn">编辑</button>
+                <button id="html-action-rename-btn">重命名</button>
+                <button id="html-action-delete-btn" class="btn-danger">删除</button>
+                <button id="html-action-cancel-btn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // HTML收藏相册：数据层（LocalStorage存储）与交互
+        (function(){
+            const lsKey = 'html-collector-cards';
+            
+            // 存储接口
+            const store = {
+                async all(){ 
+                    try { 
+                        return JSON.parse(localStorage.getItem(lsKey)||'[]'); 
+                    } catch { 
+                        return []; 
+                    } 
+                },
+                async get(id){ 
+                    const arr = await this.all();
+                    return arr.find(x=>x.id===id); 
+                },
+                async add(item){ 
+                    const arr = await this.all();
+                    item.id = Date.now();
+                    item.updatedAt = Date.now();
+                    arr.push(item); 
+                    localStorage.setItem(lsKey, JSON.stringify(arr)); 
+                    return item.id; 
+                },
+                async update(id, patch){ 
+                    const arr = await this.all();
+                    const i = arr.findIndex(x=>x.id===id); 
+                    if(i>-1){ 
+                        arr[i] = {...arr[i], ...patch, updatedAt: Date.now()}; 
+                        localStorage.setItem(lsKey, JSON.stringify(arr));
+                    } 
+                },
+                async delete(id){ 
+                    const arr = await this.all();
+                    const filtered = arr.filter(x=>x.id!==id);
+                    localStorage.setItem(lsKey, JSON.stringify(filtered)); 
+                },
+            };
+
+            // 渲染网格
+            async function renderGrid(){
+                const grid = document.getElementById('html-card-grid');
+                if (!grid) return;
+                const cards = await store.all();
+                grid.innerHTML = cards.map(c=>
+                    `<div class="html-card" data-id="${c.id}">
+                        <div class="html-card-cover">
+                            <iframe sandbox="allow-same-origin" referrerpolicy="no-referrer" srcdoc="${String(c.content||'').replace(/"/g,'&quot;')}"></iframe>
+                        </div>
+                        <div class="html-card-title">${(c.title||'未命名')}</div>
+                    </div>`
+                ).join('');
+            }
+
+            // 界面切换函数
+            function showScreen(screenId){
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                const screenToShow = document.getElementById(screenId);
+                if (screenToShow) screenToShow.classList.add('active');
+                
+                // 进入相册时自动刷新
+                if(screenId === 'html-gallery-screen'){
+                    renderGrid();
+                }
+            }
+
+            // 显示首页（这里可以自定义）
+            function showHome(){
+                alert('这是独立的HTML收藏器，您可以关闭此窗口返回原应用');
+            }
+
+            // 新建HTML卡片
+            const addBtn = document.getElementById('add-html-card-btn');
+            if (addBtn) addBtn.onclick = () => {
+                document.getElementById('html-editor-title').textContent = '新增 HTML';
+                document.getElementById('html-editor-screen').dataset.editingId = '';
+                document.getElementById('html-card-title-input').value = '';
+                document.getElementById('html-card-content-input').value = '';
+                showScreen('html-editor-screen');
+            };
+
+            // 保存HTML卡片
+            const saveBtn = document.getElementById('save-html-card-btn');
+            if (saveBtn) saveBtn.onclick = async () => {
+                const title = document.getElementById('html-card-title-input').value.trim() || '未命名';
+                const content = document.getElementById('html-card-content-input').value;
+                const editingId = parseInt(document.getElementById('html-editor-screen').dataset.editingId || '');
+                
+                if (editingId) {
+                    await store.update(editingId, { title, content });
+                } else {
+                    await store.add({ title, content });
+                }
+                
+                showScreen('html-gallery-screen');
+                await renderGrid();
+                alert('已保存！');
+            };
+
+            // 编辑器返回
+            const editorBack = document.getElementById('html-editor-back-btn');
+            if (editorBack) editorBack.onclick = () => showScreen('html-gallery-screen');
+
+            // 卡片交互：点击整个卡片打开全屏预览
+            document.addEventListener('click', async (e) => {
+                const card = e.target.closest('.html-card');
+                if (card) {
+                    const id = parseInt(card.dataset.id); 
+                    const item = await store.get(id); 
+                    if(!item) return;
+                    
+                    document.getElementById('html-fullscreen-title').textContent = item.title || '预览';
+                    document.getElementById('html-fullscreen-iframe').setAttribute('srcdoc', item.content || '');
+                    showScreen('html-fullscreen-screen'); 
+                    return;
+                }
+            });
+
+            // 长按触发菜单（移动端/PC都可用）
+            let longPressTimer = null;
+            function bindLongPress(container){
+                container.addEventListener('touchstart', onStart, {passive:true});
+                container.addEventListener('mousedown', onStart);
+                container.addEventListener('touchend', onEnd);
+                container.addEventListener('mouseup', onEnd);
+                container.addEventListener('mouseleave', onEnd);
+                
+                function onStart(ev){
+                    const card = ev.target.closest('.html-card'); 
+                    if(!card) return;
+                    clearTimeout(longPressTimer);
+                    longPressTimer = setTimeout(async ()=>{
+                        const id = card.dataset.id; 
+                        const modal = document.getElementById('html-card-actions-modal');
+                        modal.dataset.id = id; 
+                        modal.classList.add('visible');
+                    }, 550); // 按住0.55秒
+                }
+                function onEnd(){ 
+                    clearTimeout(longPressTimer); 
+                }
+            }
+            
+            const gridEl = document.getElementById('html-card-grid');
+            if (gridEl) bindLongPress(gridEl);
+
+            // 全屏返回
+            const fsBack = document.getElementById('html-fullscreen-back-btn');
+            if (fsBack) fsBack.onclick = () => showScreen('html-gallery-screen');
+
+            // 更多操作：编辑/重命名/删除
+            const actionsModal = document.getElementById('html-card-actions-modal');
+            const actionEdit = document.getElementById('html-action-edit-btn');
+            const actionRename = document.getElementById('html-action-rename-btn');
+            const actionDelete = document.getElementById('html-action-delete-btn');
+            const actionCancel = document.getElementById('html-action-cancel-btn');
+            
+            if (actionCancel) actionCancel.onclick = ()=> actionsModal.classList.remove('visible');
+
+            if (actionEdit) actionEdit.onclick = async ()=>{
+                const id = parseInt(actionsModal.dataset.id||''); 
+                if(!id) return; 
+                const item = await store.get(id); 
+                if(!item) return;
+                
+                actionsModal.classList.remove('visible');
+                document.getElementById('html-editor-title').textContent = '编辑 HTML';
+                document.getElementById('html-editor-screen').dataset.editingId = String(id);
+                document.getElementById('html-card-title-input').value = item.title || '';
+                document.getElementById('html-card-content-input').value = item.content || '';
+                showScreen('html-editor-screen');
+            };
+            
+            if (actionRename) actionRename.onclick = async ()=>{
+                const id = parseInt(actionsModal.dataset.id||''); 
+                if(!id) return; 
+                const item = await store.get(id); 
+                if(!item) return;
+                
+                const newName = prompt('输入新标题：', item.title || '');
+                if (newName !== null) { 
+                    await store.update(id, { title: newName.trim() || '未命名' }); 
+                    await renderGrid(); 
+                }
+                actionsModal.classList.remove('visible');
+            };
+            
+            if (actionDelete) actionDelete.onclick = async ()=>{
+                const id = parseInt(actionsModal.dataset.id||''); 
+                if(!id) return;
+                
+                if (confirm('确定删除该HTML吗？此操作不可恢复。')){ 
+                    await store.delete(id); 
+                    await renderGrid(); 
+                }
+                actionsModal.classList.remove('visible');
+            };
+
+            // 初始化
+            renderGrid();
+        })();
+    </script>
+</body>
+</html>
